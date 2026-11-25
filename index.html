@@ -21,6 +21,7 @@
   .dropdown div.locked { color: #888; }
   .dropdown div.locked:hover { background: #fff; color: #888; cursor: default; }
   .dropdown div.cur { font-weight: bold; }
+  .dropdown div.on::after { content: "✓"; }
   .dropdown hr { border: 0; border-top: 1px solid #000; margin: 3px 0; }
   .dropdown kbd { font: inherit; opacity: .7; }
   .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 6px; border-bottom: 1px solid #808080; }
@@ -76,6 +77,7 @@
         <div data-act="restart">Отначало <kbd>R</kbd></div>
         <div data-act="undo">Върни ход <kbd>Z</kbd></div>
         <div data-act="hint">Подсказка <kbd>H</kbd></div>
+        <div data-act="sound" id="soundItem">Звук <kbd>M</kbd></div>
         <hr>
         <div data-act="prev">Предишно ниво <kbd>PgUp</kbd></div>
         <div data-act="next">Следващо ниво <kbd>PgDn</kbd></div>
@@ -97,6 +99,7 @@
     <button data-act="undo" title="Върни ход (Z)">↶</button>
     <button data-act="restart" title="Отначало (R)">⟲</button>
     <button data-act="hint" id="btnHint" title="Подсказка (H)">💡 Подсказка</button>
+    <button data-act="sound" id="btnSound" title="Звук (M)">🔊</button>
     <span class="sep"></span>
     <button data-act="prev" id="btnPrev" title="Предишно ниво">◀</button>
     <span class="lcd" id="lcdLevel">1</span>
@@ -365,6 +368,63 @@ let prog = loadProg();
 let li = 0, s = null, history = [], busy = false, queued = null, facing = 1, animToken = 0;
 let hint = null, hintMsg = '', hintsUsed = 0;
 
+// ---------------------------------------------------------------- звук (генериран, без файлове)
+let soundOn = prog.sound !== false, actx = null, heroFalling = false;
+function audio() {
+  if (!actx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; actx = new C(); }
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function tone(freq, dur, { type = 'square', vol = 0.06, slide = 0, delay = 0 } = {}) {
+  const a = audio(); if (!a) return;
+  const t0 = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol, t0 + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+let noiseBuf = null;
+function noise(dur, { vol = 0.1, freq = 1500, q = 1, delay = 0 } = {}) {
+  const a = audio(); if (!a) return;
+  if (!noiseBuf) {
+    noiseBuf = a.createBuffer(1, a.sampleRate * 0.5, a.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const t0 = a.currentTime + delay, src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+  src.buffer = noiseBuf; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(f).connect(g).connect(a.destination); src.start(t0); src.stop(t0 + dur + 0.02);
+}
+const SFX = {
+  step:  () => tone(200, 0.035, { vol: 0.025 }),
+  climb: () => tone(420, 0.045, { type: 'triangle', vol: 0.05 }),
+  dig:   () => noise(0.08, { vol: 0.18, freq: 1400, q: 0.8 }),
+  push:  () => { noise(0.14, { vol: 0.22, freq: 260, q: 1.2 }); tone(90, 0.1, { type: 'sine', vol: 0.08 }); },
+  land:  () => { noise(0.18, { vol: 0.3, freq: 160, q: 1 }); tone(80, 0.14, { type: 'sine', vol: 0.18, slide: -40 }); },
+  thump: () => tone(130, 0.06, { type: 'triangle', vol: 0.07, slide: -50 }),
+  heart: () => { tone(988, 0.07, { vol: 0.05 }); tone(1319, 0.12, { vol: 0.05, delay: 0.07 }); },
+  open:  () => [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.13, { vol: 0.05, delay: i * 0.08 })),
+  dead:  () => { tone(500, 0.55, { type: 'sawtooth', vol: 0.06, slide: -430 }); noise(0.3, { vol: 0.25, freq: 220 }); },
+  win:   () => [392, 523, 659, 784, 659, 1047].forEach((f, i) =>
+           tone(f, i === 5 ? 0.4 : 0.11, { vol: 0.06, delay: i * 0.11, type: i === 5 ? 'triangle' : 'square' })),
+  undo:  () => tone(600, 0.05, { type: 'triangle', vol: 0.03, slide: -200 }),
+  hint:  () => { tone(1568, 0.06, { type: 'sine', vol: 0.05 }); tone(2093, 0.1, { type: 'sine', vol: 0.04, delay: 0.06 }); },
+};
+function sfx(name) { if (soundOn && SFX[name]) try { SFX[name](); } catch (e) {} }
+function toggleSound() {
+  soundOn = !soundOn; prog.sound = soundOn; saveProg(); updateSoundUI();
+  if (soundOn) sfx('heart');
+}
+function updateSoundUI() {
+  document.getElementById('btnSound').textContent = soundOn ? '🔊' : '🔇';
+  document.getElementById('soundItem').classList.toggle('on', soundOn);
+}
+// iOS/Chrome пускат звук само след действие на потребителя
+['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+  document.addEventListener(ev, () => { if (soundOn) audio(); }, { passive: true }));
+
 function loadProg() {
   try { return Object.assign({ unlocked: 0, best: {}, last: 0 }, JSON.parse(localStorage.getItem(SAVE)) || {}); }
   catch (e) { return { unlocked: 0, best: {}, last: 0 }; }
@@ -386,8 +446,14 @@ function doMove(dx, dy) {
   if (busy) { queued = [dx, dy]; return; }
   if (s.dead || s.won) return;
   if (dx) facing = dx;
+  const target = at(s, s.hx + dx, s.hy + dy), wasLadder = at(s, s.hx, s.hy) === 'H';
   const n = tryMove(s, dx, dy);
   if (!n) return;
+  if (n.hearts < s.hearts) sfx(n.hearts === 0 ? 'open' : 'heart');
+  else if (target === '.') sfx('dig');
+  else if (target === 'O') sfx('push');
+  else if (dy || target === 'H' || wasLadder) sfx('climb');
+  else sfx('step');
   history.push(s); s = n;
   hint = null; hintMsg = '';
   render(); updateUI();
@@ -400,7 +466,12 @@ function runPhysics() {
   const step = () => {
     if (token !== animToken) return;
     if (s.won) { busy = false; onWin(); return; }
+    const hb = s.hearts, hy0 = s.hy, prevFall = s.falling.slice();
     const moved = tick(s);
+    if (s.hearts < hb) sfx(s.hearts === 0 ? 'open' : 'heart');
+    if (s.hy > hy0) heroFalling = true;
+    else if (heroFalling) { heroFalling = false; if (!s.dead) sfx('thump'); }
+    if (!s.dead && prevFall.some(i => !s.falling.includes(i + s.w))) sfx('land');
     render(); updateUI();
     if (s.dead) { busy = false; queued = null; onDead(); return; }
     if (s.won) { busy = false; onWin(); return; }
@@ -422,7 +493,7 @@ function showHint() {
     const h = findHint(s, LEVELS[li]);
     document.body.style.cursor = '';
     if (h) {
-      hint = h; hintsUsed++;
+      hint = h; hintsUsed++; sfx('hint');
       hintMsg = 'Подсказка: ' + DIR_NAMES[h];
     } else {
       hint = null;
@@ -438,7 +509,7 @@ function showHint() {
 function undo() {
   if (!history.length) return;
   animToken++; busy = false; queued = null;
-  s = history.pop();
+  s = history.pop(); heroFalling = false; sfx('undo');
   hint = null; hintMsg = '';
   hideOverlay(); render(); updateUI();
 }
@@ -447,6 +518,7 @@ function canGo(i) { return i >= 0 && i < LEVELS.length && i <= prog.unlocked; }
 function go(i) { if (canGo(i)) startLevel(i); }
 
 function onWin() {
+  heroFalling = false; sfx('win');
   const prev = prog.best[li];
   const isRecord = prev === undefined || s.moves < prev;
   if (isRecord) prog.best[li] = s.moves;
@@ -464,6 +536,7 @@ function onWin() {
     '<button data-act="restart">Пак това ниво</button>');
 }
 function onDead() {
+  heroFalling = false; sfx('dead');
   showBox('Ох!', 'Камък падна върху героя.',
     '<button data-act="undo">↶ Върни ход</button><button data-act="restart">⟲ Отначало</button>');
 }
@@ -479,7 +552,7 @@ function showHelp() {
           Камък, който <i>пада</i> върху теб, те смачква. Камък, който просто стои върху теб, не е опасен, докато не се махнеш изпод него.</li>
       <li>Можеш да буташ по един камък наляво или надясно, ако зад него е празно.</li>
      </ul>
-     <span class="keys-only"><b>H</b> дава подсказка, <b>Z</b> връща ход, <b>R</b> започва нивото отначало, <b>PgUp/PgDn</b> сменят нивото.</span><span class="touch-only">💡 дава подсказка, ↶ връща ход, ⟲ започва нивото отначало.</span>`,
+     <span class="keys-only"><b>M</b> пуска/спира звука, <b>H</b> дава подсказка, <b>Z</b> връща ход, <b>R</b> започва нивото отначало, <b>PgUp/PgDn</b> сменят нивото.</span><span class="touch-only">💡 дава подсказка, ↶ връща ход, ⟲ започва нивото отначало.</span>`,
     '<button data-act="close">Добре</button>', 'left');
 }
 function showAbout() {
@@ -670,10 +743,11 @@ function act(a) {
   else if (a === 'next') go(li + 1);
   else if (a === 'help') showHelp();
   else if (a === 'hint') showHint();
+  else if (a === 'sound') toggleSound();
   else if (a === 'about') showAbout();
   else if (a === 'close') hideOverlay();
   else if (a === 'reset') {
-    if (confirm('Да изтрия ли целия прогрес и рекордите?')) { prog = { unlocked: 0, best: {}, last: 0 }; saveProg(); startLevel(0); }
+    if (confirm('Да изтрия ли целия прогрес и рекордите?')) { prog = { unlocked: 0, best: {}, last: 0, sound: soundOn }; saveProg(); startLevel(0); }
   }
 }
 function closeMenus() { document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open')); }
@@ -702,6 +776,7 @@ document.addEventListener('keydown', e => {
   else if (k === 'PageDown') { e.preventDefault(); go(li + 1); }
   else if (k === 'F1') { e.preventDefault(); showHelp(); }
   else if (k === 'h' || k === 'H') showHint();
+  else if (k === 'm' || k === 'M') toggleSound();
   else if (k === 'Escape') { closeMenus(); if (!s.dead) hideOverlay(); }
   else if ((k === 'Enter' || k === ' ') && s.won) { e.preventDefault(); go(li + 1); }
 });
@@ -716,6 +791,7 @@ cv.addEventListener('touchend', e => {
   if (Math.abs(dx) > Math.abs(dy)) doMove(Math.sign(dx), 0); else doMove(0, Math.sign(dy));
 });
 
+updateSoundUI();
 startLevel(canGo(prog.last) ? prog.last : 0);
 if (!prog.unlocked && !Object.keys(prog.best).length) showHelp();
 </script>
