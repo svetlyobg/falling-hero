@@ -35,6 +35,7 @@
          padding: 2px 8px; border: 2px solid; border-color: #404040 #fff #fff #404040; min-width: 48px; text-align: right; }
   .lcd.hearts { color: #f55; }
   .toolbar label { margin-left: 4px; }
+  .toolbar .grp { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
   .wrap { position: relative; padding: 8px; background: #8a4a1c;
           border: 2px solid; border-color: #404040 #fff #fff #404040; margin: 6px; }
   canvas { display: block; max-width: 100%; height: auto; image-rendering: auto; touch-action: none; }
@@ -72,41 +73,43 @@
 <div class="window">
   <div class="title" id="title">Падащият герой</div>
   <div class="menubar">
-    <div class="menu">Игра
+    <div class="menu"><span data-t="mGame">Игра</span>
       <div class="dropdown">
-        <div data-act="restart">Отначало <kbd>R</kbd></div>
-        <div data-act="undo">Върни ход <kbd>Z</kbd></div>
-        <div data-act="hint">Подсказка <kbd>H</kbd></div>
-        <div data-act="sound" id="soundItem">Звук <kbd>M</kbd></div>
+        <div data-act="restart"><span data-t="restart">Отначало</span> <kbd>R</kbd></div>
+        <div data-act="undo"><span data-t="undo">Върни ход</span> <kbd>Z</kbd></div>
+        <div data-act="hint"><span data-t="hint">Подсказка</span> <kbd>H</kbd></div>
+        <div data-act="sound" id="soundItem"><span data-t="sound">Звук</span> <kbd>M</kbd></div>
+        <div data-act="lang"><span data-t="otherLang">English</span> <kbd>L</kbd></div>
         <hr>
-        <div data-act="prev">Предишно ниво <kbd>PgUp</kbd></div>
-        <div data-act="next">Следващо ниво <kbd>PgDn</kbd></div>
+        <div data-act="prev"><span data-t="prev">Предишно ниво</span> <kbd>PgUp</kbd></div>
+        <div data-act="next"><span data-t="next">Следващо ниво</span> <kbd>PgDn</kbd></div>
         <hr>
-        <div data-act="reset">Изтрий прогреса</div>
+        <div data-act="reset"><span data-t="reset">Изтрий прогреса</span></div>
       </div>
     </div>
-    <div class="menu">Нива
+    <div class="menu"><span data-t="mLevels">Нива</span>
       <div class="dropdown" id="levelMenu"></div>
     </div>
-    <div class="menu">Помощ
+    <div class="menu"><span data-t="mHelp">Помощ</span>
       <div class="dropdown">
-        <div data-act="help">Правила <kbd>F1</kbd></div>
-        <div data-act="about">За играта</div>
+        <div data-act="help"><span data-t="rules">Правила</span> <kbd>F1</kbd></div>
+        <div data-act="about"><span data-t="about">За играта</span></div>
       </div>
     </div>
   </div>
   <div class="toolbar">
-    <button data-act="undo" title="Върни ход (Z)">↶</button>
-    <button data-act="restart" title="Отначало (R)">⟲</button>
-    <button data-act="hint" id="btnHint" title="Подсказка (H)">💡 Подсказка</button>
-    <button data-act="sound" id="btnSound" title="Звук (M)">🔊</button>
+    <button data-act="undo" data-tt="undo" data-key="Z">↶</button>
+    <button data-act="restart" data-tt="restart" data-key="R">⟲</button>
+    <button data-act="hint" id="btnHint" data-tt="hint" data-key="H">💡 <span data-t="hint">Подсказка</span></button>
+    <button data-act="sound" id="btnSound" data-tt="sound" data-key="M">🔊</button>
+    <button data-act="lang" id="btnLang" data-tt="langTip" data-key="L">EN</button>
     <span class="sep"></span>
-    <button data-act="prev" id="btnPrev" title="Предишно ниво">◀</button>
+    <span class="grp"><button data-act="prev" id="btnPrev" data-tt="prev">◀</button>
     <span class="lcd" id="lcdLevel">1</span>
-    <button data-act="next" id="btnNext" title="Следващо ниво">▶</button>
+    <button data-act="next" id="btnNext" data-tt="next">▶</button></span>
     <span class="sep"></span>
-    <label>♥</label><span class="lcd hearts" id="lcdHearts">0</span>
-    <label>Ходове</label><span class="lcd" id="lcdMoves">0</span>
+    <span class="grp"><label>♥</label><span class="lcd hearts" id="lcdHearts">0</span></span>
+    <span class="grp"><label data-t="moves">Ходове</label><span class="lcd" id="lcdMoves">0</span></span>
   </div>
   <div class="wrap">
     <canvas id="cv" width="640" height="320"></canvas>
@@ -132,7 +135,7 @@
 // Легенда: # стена   . пясък   H стълба   O камък   * сърце   E изход
 //          P герой   Q герой върху стълба
 const LEVELS = [
-  { name: "Първи стъпки",
+  { name: "Първи стъпки", en: "First Steps",
     sol: "RRRRRRRRRRRLLLLUUUUUULLLLLRRRRRRRRRRRRRRUUULLLRRRR", par: 50, map: [
     "####################",
     "#                  #",
@@ -145,7 +148,7 @@ const LEVELS = [
     "#       H   *    HE#",
     "####################",
   ]},
-  { name: "Мостове",
+  { name: "Мостове", en: "Bridges",
     sol: "RRRRRRRRRRRRRRRRR", par: 17, map: [
     "####################",
     "#                  #",
@@ -153,7 +156,7 @@ const LEVELS = [
     "##### #### #### ####",
     "####################",
   ]},
-  { name: "Пясъкът",
+  { name: "Пясъкът", en: "The Sand",
     sol: "RRDDRRRRRRRDDDDDLLLLLLLUURRRLLLUUUUURRRRRRRRRRRRDDRRDDLLLRRRUURDDD", map: [
     "####################",
     "#P.....  O   ......#",
@@ -166,7 +169,7 @@ const LEVELS = [
     "#  H   *  ..     .E#",
     "####################",
   ]},
-  { name: "Под камъните",
+  { name: "Под камъните", en: "Under the Rocks",
     sol: "RRRRRRRRRRRRRDRRRDDLLLLLDLLLLLLLLLLLUURRRRRDRRRRRRRRRRRR", map: [
     "####################",
     "#P    O O O O     H#",
@@ -178,7 +181,7 @@ const LEVELS = [
     "#H    *     *    .E#",
     "####################",
   ]},
-  { name: "Пясъчен часовник",
+  { name: "Пясъчен часовник", en: "Hourglass",
     sol: "RRDRRRRRRRRRRRRLLDDDRRRRLLLLLLLLLLLLLLLLUUURRRRRRRRRRRRRRRRR", map: [
     "####################",
     "#Q   O  O  O  O    #",
@@ -190,7 +193,7 @@ const LEVELS = [
     "#H*  ..........  *E#",
     "####################",
   ]},
-  { name: "Двете кули",
+  { name: "Двете кули", en: "Two Towers",
     sol: "LLLLRRRRUULRUUUURRRRRRRRRRLLLLLLLLLLLLLLLLLRRRRRRRDDRRRRDDRRRRRR", par: 64, map: [
     "####################",
     "#*  O   H      O  *#",
@@ -368,6 +371,101 @@ let prog = loadProg();
 let li = 0, s = null, history = [], busy = false, queued = null, facing = 1, animToken = 0;
 let hint = null, hintMsg = '', hintsUsed = 0;
 
+// ---------------------------------------------------------------- езици
+const STR = {
+  bg: {
+    game: 'Падащият герой', mGame: 'Игра', mLevels: 'Нива', mHelp: 'Помощ',
+    restart: 'Отначало', undo: 'Върни ход', hint: 'Подсказка', sound: 'Звук', otherLang: 'English',
+    langTip: 'Switch to English', prev: 'Предишно ниво', next: 'Следващо ниво', reset: 'Изтрий прогреса',
+    rules: 'Правила', about: 'За играта', moves: 'Ходове',
+    dirs: { R: '→ надясно', L: '← наляво', U: '↑ нагоре', D: '↓ надолу' },
+    hintDead: 'Подсказка: върни хода (Z).', thinking: 'Мисля…', hintIs: 'Подсказка: ',
+    noPathBack: n => `Оттук не намирам път. Върни ${n} ${n === 1 ? 'ход' : 'хода'} (Z).`,
+    noPath: 'Оттук не намирам път. Започни отначало (R).',
+    winTitle: 'Браво!',
+    winBody: (name, m) => `<b>${name}</b> е минато за <b>${m}</b> хода.`,
+    hintsUsed: n => `Използва ${n} ${n === 1 ? 'подсказка' : 'подсказки'}.`,
+    record: p => `Нов рекорд (досега: ${p})!`,
+    optimal: 'Това е най-краткото възможно решение!',
+    possible: p => `Възможно е и за ${p}.`,
+    lastLevel: 'Това беше последното ниво. Мина цялата игра! ♥',
+    nextBtn: 'Следващо ниво ▶', againBtn: 'Пак това ниво',
+    deadTitle: 'Ох!', deadBody: 'Камък падна върху героя.',
+    helpBody: `Събери всички <b style="color:#c00">♥ сърца</b>, после стигни до <b>EXIT</b>.
+     <ul>
+      <li class="keys-only">Стрелки или WASD за движение. По стълбите се качваш и слизаш.</li>
+      <li class="touch-only">Движиш се с бутоните под играта или като плъзнеш с пръст по дъската. По стълбите се качваш и слизаш.</li>
+      <li>Ако няма нищо под теб, падаш.</li>
+      <li>Минаваш през пясъка и той изчезва.</li>
+      <li>Камъните падат, когато под тях стане празно.
+          Камък, който <i>пада</i> върху теб, те смачква. Камък, който просто стои върху теб, не е опасен, докато не се махнеш изпод него.</li>
+      <li>Можеш да буташ по един камък наляво или надясно, ако зад него е празно.</li>
+     </ul>
+     <span class="keys-only"><b>M</b> пуска/спира звука, <b>H</b> дава подсказка, <b>Z</b> връща ход, <b>R</b> започва нивото отначало, <b>PgUp/PgDn</b> сменят нивото, <b>L</b> сменя езика.</span><span class="touch-only">💡 дава подсказка, ↶ връща ход, ⟲ започва нивото отначало.</span>`,
+    ok: 'Добре',
+    aboutBody: 'Логическа игра, вдъхновена от старите пъзели за Windows 3.1 с падащи камъни и сърца.<br>Нивата са оригинални.',
+    heartsLeft: (h, t) => `Остават ${h} от ${t} сърца`, exitOpen: 'Изходът е отворен!',
+    best: 'Рекорд', min: 'Минимум', confirmReset: 'Да изтрия ли целия прогрес и рекордите?',
+  },
+  en: {
+    game: 'Falling Hero', mGame: 'Game', mLevels: 'Levels', mHelp: 'Help',
+    restart: 'Restart', undo: 'Undo', hint: 'Hint', sound: 'Sound', otherLang: 'Български',
+    langTip: 'Превключи на български', prev: 'Previous level', next: 'Next level', reset: 'Reset progress',
+    rules: 'How to play', about: 'About', moves: 'Moves',
+    dirs: { R: '→ right', L: '← left', U: '↑ up', D: '↓ down' },
+    hintDead: 'Hint: undo the move (Z).', thinking: 'Thinking…', hintIs: 'Hint: ',
+    noPathBack: n => `No way forward from here. Undo ${n} ${n === 1 ? 'move' : 'moves'} (Z).`,
+    noPath: 'No way forward from here. Restart the level (R).',
+    winTitle: 'Well done!',
+    winBody: (name, m) => `You finished <b>${name}</b> in <b>${m}</b> moves.`,
+    hintsUsed: n => `You used ${n} ${n === 1 ? 'hint' : 'hints'}.`,
+    record: p => `New record (previous: ${p})!`,
+    optimal: 'That is the shortest possible solution!',
+    possible: p => `It can be done in ${p}.`,
+    lastLevel: 'That was the last level. You beat the whole game! ♥',
+    nextBtn: 'Next level ▶', againBtn: 'Play again',
+    deadTitle: 'Ouch!', deadBody: 'A rock fell on the hero.',
+    helpBody: `Collect all the <b style="color:#c00">♥ hearts</b>, then reach the <b>EXIT</b>.
+     <ul>
+      <li class="keys-only">Arrow keys or WASD to move. Climb up and down the ladders.</li>
+      <li class="touch-only">Move with the buttons below the game or by swiping on the board. Climb up and down the ladders.</li>
+      <li>If there is nothing under you, you fall.</li>
+      <li>Sand disappears when you walk through it.</li>
+      <li>Rocks fall when the space under them becomes empty.
+          A rock that <i>falls</i> on you crushes you. A rock that just rests on top of you is safe until you step out from under it.</li>
+      <li>You can push one rock left or right if the space behind it is empty.</li>
+     </ul>
+     <span class="keys-only"><b>M</b> toggles sound, <b>H</b> gives a hint, <b>Z</b> undoes a move, <b>R</b> restarts the level, <b>PgUp/PgDn</b> change the level, <b>L</b> switches the language.</span><span class="touch-only">💡 gives a hint, ↶ undoes a move, ⟲ restarts the level.</span>`,
+    ok: 'OK',
+    aboutBody: 'A puzzle game inspired by the old Windows 3.1 puzzles with falling rocks and hearts.<br>The levels are original.',
+    heartsLeft: (h, t) => `${h} of ${t} hearts left`, exitOpen: 'The exit is open!',
+    best: 'Best', min: 'Minimum', confirmReset: 'Delete all progress and records?',
+  },
+};
+const urlLang = new URLSearchParams(location.search).get('lang');
+let lang = STR[urlLang] ? urlLang : STR[prog.lang] ? prog.lang
+         : /^bg/i.test(navigator.language || '') ? 'bg' : 'en';
+function T(k) { return STR[lang][k]; }
+function lvName(i) { return lang === 'en' ? LEVELS[i].en : LEVELS[i].name; }
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T(el.dataset.t); });
+  document.querySelectorAll('[data-tt]').forEach(el => {
+    el.title = T(el.dataset.tt) + (el.dataset.key ? ` (${el.dataset.key})` : '');
+  });
+  document.getElementById('btnLang').textContent = lang === 'bg' ? 'EN' : 'BG';
+}
+function toggleLang() {
+  lang = lang === 'bg' ? 'en' : 'bg';
+  prog.lang = lang; saveProg();
+  hintMsg = '';
+  applyLang(); updateUI();
+  if (overlay.classList.contains('show')) {
+    if (s.dead) onDead(true); else if (s.won) onWin(true); else if (ovBox.dataset.kind === 'help') showHelp();
+    else if (ovBox.dataset.kind === 'about') showAbout();
+  }
+}
+
 // ---------------------------------------------------------------- звук (генериран, без файлове)
 let soundOn = prog.sound !== false, actx = null, heroFalling = false;
 function audio() {
@@ -482,26 +580,24 @@ function runPhysics() {
   step();
 }
 
-const DIR_NAMES = { R: '→ надясно', L: '← наляво', U: '↑ нагоре', D: '↓ надолу' };
 function showHint() {
   closeMenus();
   if (busy || s.won) return;
-  if (s.dead) { hintMsg = 'Подсказка: върни хода (Z).'; updateUI(); return; }
-  hintMsg = 'Мисля…'; updateUI();
+  if (s.dead) { hintMsg = T('hintDead'); updateUI(); return; }
+  hintMsg = T('thinking'); updateUI();
   document.body.style.cursor = 'wait';
   setTimeout(() => {
     const h = findHint(s, LEVELS[li]);
     document.body.style.cursor = '';
     if (h) {
       hint = h; hintsUsed++; sfx('hint');
-      hintMsg = 'Подсказка: ' + DIR_NAMES[h];
+      hintMsg = T('hintIs') + T('dirs')[h];
     } else {
       hint = null;
       let back = 0;
       for (let j = history.length - 1; j >= 0 && history.length - j <= 30; j--)
         if (findHint(history[j], LEVELS[li], 4000)) { back = history.length - j; break; }
-      hintMsg = back ? `Оттук не намирам път. Върни ${back} ${back === 1 ? 'ход' : 'хода'} (Z).`
-                     : 'Оттук не намирам път. Започни отначало (R).';
+      hintMsg = back ? T('noPathBack')(back) : T('noPath');
     }
     render(); updateUI();
   }, 30);
@@ -517,51 +613,42 @@ function restart() { startLevel(li); }
 function canGo(i) { return i >= 0 && i < LEVELS.length && i <= prog.unlocked; }
 function go(i) { if (canGo(i)) startLevel(i); }
 
-function onWin() {
-  heroFalling = false; sfx('win');
-  const prev = prog.best[li];
-  const isRecord = prev === undefined || s.moves < prev;
-  if (isRecord) prog.best[li] = s.moves;
-  prog.unlocked = Math.max(prog.unlocked, li + 1);
-  saveProg(); updateUI();
+let lastWin = null;
+function onWin(redraw) {
+  if (!redraw) {
+    heroFalling = false; sfx('win');
+    const prev = prog.best[li];
+    const isRecord = prev === undefined || s.moves < prev;
+    if (isRecord) prog.best[li] = s.moves;
+    prog.unlocked = Math.max(prog.unlocked, li + 1);
+    saveProg(); updateUI();
+    lastWin = { prev, isRecord };
+  }
+  const { prev, isRecord } = lastWin, par = LEVELS[li].par;
   const last = li === LEVELS.length - 1;
-  showBox('Браво!',
-    `<b>${LEVELS[li].name}</b> е минато за <b>${s.moves}</b> хода.` +
-    (hintsUsed ? `<br><small>Използва ${hintsUsed} ${hintsUsed === 1 ? 'подсказка' : 'подсказки'}.</small>` : '') +
-    (isRecord && prev !== undefined ? `<br>Нов рекорд (досега: ${prev})!` : '') +
-    (LEVELS[li].par ? (s.moves <= LEVELS[li].par ? '<br>Това е най-краткото възможно решение!'
-      : `<br><small>Възможно е и за ${LEVELS[li].par}.</small>`) : '') +
-    (last ? '<br><br>Това беше последното ниво. Мина цялата игра! ♥' : ''),
-    (last ? '' : '<button data-act="next">Следващо ниво ▶</button>') +
-    '<button data-act="restart">Пак това ниво</button>');
+  showBox(T('winTitle'),
+    T('winBody')(lvName(li), s.moves) +
+    (hintsUsed ? `<br><small>${T('hintsUsed')(hintsUsed)}</small>` : '') +
+    (isRecord && prev !== undefined ? '<br>' + T('record')(prev) : '') +
+    (par ? (s.moves <= par ? '<br>' + T('optimal') : `<br><small>${T('possible')(par)}</small>`) : '') +
+    (last ? '<br><br>' + T('lastLevel') : ''),
+    (last ? '' : `<button data-act="next">${T('nextBtn')}</button>`) +
+    `<button data-act="restart">${T('againBtn')}</button>`);
 }
-function onDead() {
-  heroFalling = false; sfx('dead');
-  showBox('Ох!', 'Камък падна върху героя.',
-    '<button data-act="undo">↶ Върни ход</button><button data-act="restart">⟲ Отначало</button>');
+function onDead(redraw) {
+  if (!redraw) { heroFalling = false; sfx('dead'); }
+  showBox(T('deadTitle'), T('deadBody'),
+    `<button data-act="undo">↶ ${T('undo')}</button><button data-act="restart">⟲ ${T('restart')}</button>`);
 }
 function showHelp() {
-  showBox('Правила',
-    `Събери всички <b style="color:#c00">♥ сърца</b>, после стигни до <b>EXIT</b>.
-     <ul>
-      <li class="keys-only">Стрелки или WASD за движение. По стълбите се качваш и слизаш.</li>
-      <li class="touch-only">Движиш се с бутоните под играта или като плъзнеш с пръст по дъската. По стълбите се качваш и слизаш.</li>
-      <li>Ако няма нищо под теб, падаш.</li>
-      <li>Минаваш през пясъка и той изчезва.</li>
-      <li>Камъните падат, когато под тях стане празно.
-          Камък, който <i>пада</i> върху теб, те смачква. Камък, който просто стои върху теб, не е опасен, докато не се махнеш изпод него.</li>
-      <li>Можеш да буташ по един камък наляво или надясно, ако зад него е празно.</li>
-     </ul>
-     <span class="keys-only"><b>M</b> пуска/спира звука, <b>H</b> дава подсказка, <b>Z</b> връща ход, <b>R</b> започва нивото отначало, <b>PgUp/PgDn</b> сменят нивото.</span><span class="touch-only">💡 дава подсказка, ↶ връща ход, ⟲ започва нивото отначало.</span>`,
-    '<button data-act="close">Добре</button>', 'left');
+  showBox(T('rules'), T('helpBody'), `<button data-act="close">${T('ok')}</button>`, 'left', 'help');
 }
 function showAbout() {
-  showBox('За играта',
-    'Логическа игра, вдъхновена от старите пъзели за Windows 3.1 с падащи камъни и сърца.<br>Нивата са оригинални.',
-    '<button data-act="close">Добре</button>');
+  showBox(T('about'), T('aboutBody'), `<button data-act="close">${T('ok')}</button>`, '', 'about');
 }
-function showBox(title, body, btns, cls = '') {
+function showBox(title, body, btns, cls = '', kind = '') {
   ovBox.innerHTML = `<h3>${title}</h3><div class="body ${cls}">${body}<div class="btns">${btns}</div></div>`;
+  ovBox.dataset.kind = kind;
   overlay.classList.add('show');
 }
 function hideOverlay() { overlay.classList.remove('show'); }
@@ -572,17 +659,18 @@ function updateUI() {
   document.getElementById('lcdMoves').textContent = s.moves;
   document.getElementById('btnPrev').disabled = !canGo(li - 1);
   document.getElementById('btnNext').disabled = !canGo(li + 1);
-  document.getElementById('title').textContent = `Падащият герой – ${LEVELS[li].name}`;
+  document.getElementById('title').textContent = `${T('game')} – ${lvName(li)}`;
+  document.title = T('game');
   document.getElementById('stName').textContent =
-    hintMsg || (s.hearts ? `Остават ${s.hearts} от ${s.total} сърца` : 'Изходът е отворен!');
+    hintMsg || (s.hearts ? T('heartsLeft')(s.hearts, s.total) : T('exitOpen'));
   const b = prog.best[li];
   document.getElementById('stBest').textContent =
-    (b !== undefined ? `Рекорд: ${b}` : 'Рекорд: —') + (LEVELS[li].par ? ` · Минимум: ${LEVELS[li].par}` : '');
+    `${T('best')}: ${b !== undefined ? b : '—'}` + (LEVELS[li].par ? ` · ${T('min')}: ${LEVELS[li].par}` : '');
   const menu = document.getElementById('levelMenu');
   menu.innerHTML = LEVELS.map((L, i) => {
     const ok = canGo(i), done = prog.best[i] !== undefined;
     return `<div data-level="${i}" class="${ok ? '' : 'locked'} ${i === li ? 'cur' : ''}">` +
-      `${i + 1}. ${L.name}<span>${done ? '✓ ' + prog.best[i] : ok ? '' : '🔒'}</span></div>`;
+      `${i + 1}. ${lvName(i)}<span>${done ? '✓ ' + prog.best[i] : ok ? '' : '🔒'}</span></div>`;
   }).join('');
 }
 
@@ -744,10 +832,11 @@ function act(a) {
   else if (a === 'help') showHelp();
   else if (a === 'hint') showHint();
   else if (a === 'sound') toggleSound();
+  else if (a === 'lang') toggleLang();
   else if (a === 'about') showAbout();
   else if (a === 'close') hideOverlay();
   else if (a === 'reset') {
-    if (confirm('Да изтрия ли целия прогрес и рекордите?')) { prog = { unlocked: 0, best: {}, last: 0, sound: soundOn }; saveProg(); startLevel(0); }
+    if (confirm(T('confirmReset'))) { prog = { unlocked: 0, best: {}, last: 0, sound: soundOn, lang }; saveProg(); startLevel(0); }
   }
 }
 function closeMenus() { document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open')); }
@@ -777,6 +866,7 @@ document.addEventListener('keydown', e => {
   else if (k === 'F1') { e.preventDefault(); showHelp(); }
   else if (k === 'h' || k === 'H') showHint();
   else if (k === 'm' || k === 'M') toggleSound();
+  else if (k === 'l' || k === 'L') toggleLang();
   else if (k === 'Escape') { closeMenus(); if (!s.dead) hideOverlay(); }
   else if ((k === 'Enter' || k === ' ') && s.won) { e.preventDefault(); go(li + 1); }
 });
@@ -792,6 +882,7 @@ cv.addEventListener('touchend', e => {
 });
 
 updateSoundUI();
+applyLang();
 startLevel(canGo(prog.last) ? prog.last : 0);
 if (!prog.unlocked && !Object.keys(prog.best).length) showHelp();
 </script>
