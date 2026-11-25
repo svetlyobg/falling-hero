@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Падащият герой</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #c0c0c0; font-family: "MS Sans Serif", Tahoma, Arial, sans-serif; font-size: 14px;
+         display: flex; flex-direction: column; align-items: center; padding: 20px 8px; user-select: none; }
+  .window { border: 2px solid #000; background: #c0c0c0; box-shadow: 4px 4px 0 rgba(0,0,0,.4); max-width: 100%; }
+  .title { background: #0000a8; color: #fff; text-align: center; font-weight: bold; padding: 3px 8px; }
+  .menubar { display: flex; background: #fff; border-bottom: 1px solid #000; position: relative; z-index: 5; }
+  .menu { position: relative; padding: 3px 10px; cursor: pointer; }
+  .menu:hover, .menu.open { background: #0000a8; color: #fff; }
+  .dropdown { display: none; position: absolute; top: 100%; left: 0; background: #fff; color: #000; border: 1px solid #000;
+              min-width: 230px; z-index: 10; box-shadow: 2px 2px 0 rgba(0,0,0,.4); }
+  .menu.open .dropdown { display: block; }
+  .dropdown div { padding: 4px 14px 4px 14px; white-space: nowrap; display: flex; justify-content: space-between; gap: 20px; }
+  .dropdown div:hover { background: #0000a8; color: #fff; }
+  .dropdown div.locked { color: #888; }
+  .dropdown div.locked:hover { background: #fff; color: #888; cursor: default; }
+  .dropdown div.cur { font-weight: bold; }
+  .dropdown hr { border: 0; border-top: 1px solid #000; margin: 3px 0; }
+  .dropdown kbd { font: inherit; opacity: .7; }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 6px; border-bottom: 1px solid #808080; }
+  .toolbar button, .status button, .box button {
+    font: inherit; padding: 2px 10px; cursor: pointer; background: #c0c0c0;
+    border: 2px solid; border-color: #fff #404040 #404040 #fff; }
+  .toolbar button:active, .box button:active { border-color: #404040 #fff #fff #404040; }
+  .toolbar button:disabled { color: #808080; cursor: default; }
+  .toolbar .sep { width: 10px; }
+  .lcd { background: #000; color: #3f3; font-family: Consolas, "Courier New", monospace; font-weight: bold;
+         padding: 2px 8px; border: 2px solid; border-color: #404040 #fff #fff #404040; min-width: 48px; text-align: right; }
+  .lcd.hearts { color: #f55; }
+  .toolbar label { margin-left: 4px; }
+  .wrap { position: relative; padding: 8px; background: #8a4a1c;
+          border: 2px solid; border-color: #404040 #fff #fff #404040; margin: 6px; }
+  canvas { display: block; max-width: 100%; height: auto; image-rendering: auto; touch-action: none; }
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); align-items: center; justify-content: center; z-index: 50; padding: 10px; }
+  .overlay.show { display: flex; }
+  .box { background: #c0c0c0; border: 2px solid #000; box-shadow: 3px 3px 0 rgba(0,0,0,.5); min-width: 260px; max-width: 520px; max-height: 92vh; overflow-y: auto; }
+  .box h3 { margin: 0; background: #0000a8; color: #fff; font-size: 14px; padding: 3px 8px; }
+  .box .body { padding: 14px 18px; text-align: center; line-height: 1.5; }
+  .box .body.left { text-align: left; }
+  .box .body ul { margin: 6px 0; padding-left: 20px; }
+  .box .btns { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+  .status { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 16px;
+            padding: 4px 10px; border-top: 1px solid #808080; background: #c0c0c0; }
+  .pad { display: none; margin-top: 14px; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(3, 56px); gap: 6px; }
+  .pad button { font-size: 24px; background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff; touch-action: manipulation; }
+  .pad button:active { border-color: #404040 #fff #fff #404040; }
+  .pad .u { grid-column: 2; grid-row: 1; } .pad .l { grid-column: 1; grid-row: 2; }
+  .pad .r { grid-column: 3; grid-row: 2; } .pad .d { grid-column: 2; grid-row: 3; }
+  .pad .z { grid-column: 1; grid-row: 3; font-size: 18px; } .pad .h { grid-column: 1; grid-row: 1; font-size: 18px; } .pad .x { grid-column: 3; grid-row: 3; font-size: 18px; }
+  @media (pointer: coarse) { .pad { display: grid; } }
+  .touch-only { display: none; }
+  @media (pointer: coarse) { li.touch-only { display: list-item; } span.touch-only { display: inline; } .keys-only { display: none; } }
+  @media (max-width: 520px) {
+    body { padding: 4px 0; }
+    .window { border-width: 1px; box-shadow: none; width: 100%; }
+    .wrap { padding: 2px; margin: 3px; }
+    .toolbar { padding: 3px 4px; gap: 3px; }
+    .toolbar button { padding: 2px 7px; }
+    .toolbar .sep { width: 4px; }
+    .status { font-size: 12px; padding: 3px 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="title" id="title">Падащият герой</div>
+  <div class="menubar">
+    <div class="menu">Игра
+      <div class="dropdown">
+        <div data-act="restart">Отначало <kbd>R</kbd></div>
+        <div data-act="undo">Върни ход <kbd>Z</kbd></div>
+        <div data-act="hint">Подсказка <kbd>H</kbd></div>
+        <hr>
+        <div data-act="prev">Предишно ниво <kbd>PgUp</kbd></div>
+        <div data-act="next">Следващо ниво <kbd>PgDn</kbd></div>
+        <hr>
+        <div data-act="reset">Изтрий прогреса</div>
+      </div>
+    </div>
+    <div class="menu">Нива
+      <div class="dropdown" id="levelMenu"></div>
+    </div>
+    <div class="menu">Помощ
+      <div class="dropdown">
+        <div data-act="help">Правила <kbd>F1</kbd></div>
+        <div data-act="about">За играта</div>
+      </div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <button data-act="undo" title="Върни ход (Z)">↶</button>
+    <button data-act="restart" title="Отначало (R)">⟲</button>
+    <button data-act="hint" id="btnHint" title="Подсказка (H)">💡 Подсказка</button>
+    <span class="sep"></span>
+    <button data-act="prev" id="btnPrev" title="Предишно ниво">◀</button>
+    <span class="lcd" id="lcdLevel">1</span>
+    <button data-act="next" id="btnNext" title="Следващо ниво">▶</button>
+    <span class="sep"></span>
+    <label>♥</label><span class="lcd hearts" id="lcdHearts">0</span>
+    <label>Ходове</label><span class="lcd" id="lcdMoves">0</span>
+  </div>
+  <div class="wrap">
+    <canvas id="cv" width="640" height="320"></canvas>
+    <div class="overlay" id="overlay"><div class="box" id="ovBox"></div></div>
+  </div>
+  <div class="status">
+    <span id="stName"></span>
+    <span id="stBest"></span>
+  </div>
+</div>
+<div class="pad">
+  <button class="u" data-dir="0,-1">▲</button>
+  <button class="l" data-dir="-1,0">◀</button>
+  <button class="r" data-dir="1,0">▶</button>
+  <button class="d" data-dir="0,1">▼</button>
+  <button class="z" data-act="undo">↶</button>
+  <button class="x" data-act="restart">⟲</button>
+  <button class="h" data-act="hint">💡</button>
+</div>
+
+<script>
+// LOGIC-START
+// Легенда: # стена   . пясък   H стълба   O камък   * сърце   E изход
+//          P герой   Q герой върху стълба
+const LEVELS = [
+  { name: "Първи стъпки",
+    sol: "RRRRRRRRRRRLLLLUUUUUULLLLLRRRRRRRRRRRRRRUUULLLRRRR", par: 50, map: [
+    "####################",
+    "#                  #",
+    "#  *          *    #",
+    "# ######H  ######H #",
+    "#       H        H #",
+    "#       H   *    H #",
+    "#P      H########H #",
+    "#####   H        H #",
+    "#       H   *    HE#",
+    "####################",
+  ]},
+  { name: "Мостове",
+    sol: "RRRRRRRRRRRRRRRRR", par: 17, map: [
+    "####################",
+    "#                  #",
+    "#P O   *O   *O    E#",
+    "##### #### #### ####",
+    "####################",
+  ]},
+  { name: "Пясъкът",
+    sol: "RRDDRRRRRRRDDDDDLLLLLLLUURRRLLLUUUUURRRRRRRRRRRRDDRRDDLLLRRRUURDDD", map: [
+    "####################",
+    "#P.....  O   ......#",
+    "###H....### #..*...#",
+    "#  H....*..# ......#",
+    "#  H#####..O.......#",
+    "#  H     ...#####H.#",
+    "#  H  *  ...  *  H.#",
+    "#  H######..######.#",
+    "#  H   *  ..     .E#",
+    "####################",
+  ]},
+  { name: "Под камъните",
+    sol: "RRRRRRRRRRRRRDRRRDDLLLLLDLLLLLLLLLLLUURRRRRDRRRRRRRRRRRR", map: [
+    "####################",
+    "#P    O O O O     H#",
+    "#.....*.*.*.*.....H#",
+    "#.................H#",
+    "#H###############.H#",
+    "#H   *   O   *  ..H#",
+    "#H####.#####.#####H#",
+    "#H    *     *    .E#",
+    "####################",
+  ]},
+  { name: "Пясъчен часовник",
+    sol: "RRDRRRRRRRRRRRRLLDDDRRRRLLLLLLLLLLLLLLLLUUURRRRRRRRRRRRRRRRR", map: [
+    "####################",
+    "#Q   O  O  O  O    #",
+    "#H.................#",
+    "#H..*..*....*..*...#",
+    "#H.................#",
+    "#H####.######.######",
+    "#H   ...O..O...    #",
+    "#H*  ..........  *E#",
+    "####################",
+  ]},
+  { name: "Двете кули",
+    sol: "LLLLRRRRUULRUUUURRRRRRRRRRLLLLLLLLLLLLLLLLLRRRRRRRDDRRRRDDRRRRRR", par: 64, map: [
+    "####################",
+    "#*  O   H      O  *#",
+    "### ####H####### ###",
+    "#  #    H       #  #",
+    "#  #  O H  O    #  #",
+    "#  #  .*H  .*   #  #",
+    "#  ####.H###.####  #",
+    "#   *  .Q   .  *  E#",
+    "####################",
+  ]},
+];
+
+function parseLevel(lv) {
+  const rows = lv.map, h = rows.length, w = Math.max(...rows.map(r => r.length));
+  const g = []; let hx = 1, hy = 1, hearts = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let c = rows[y][x] || ' ';
+    if (c === 'P') { hx = x; hy = y; c = ' '; }
+    else if (c === 'Q') { hx = x; hy = y; c = 'H'; }
+    if (c === '*') hearts++;
+    g.push(c);
+  }
+  return { w, h, g, hx, hy, hearts, total: hearts, falling: [], dead: false, won: false, moves: 0 };
+}
+function clone(s) { return { ...s, g: s.g.slice(), falling: s.falling.slice() }; }
+function at(s, x, y) { return (x < 0 || y < 0 || x >= s.w || y >= s.h) ? '#' : s.g[y * s.w + x]; }
+function put(s, x, y, c) { s.g[y * s.w + x] = c; }
+function passable(s, c) { return c === ' ' || c === '.' || c === 'H' || c === '*' || (c === 'E' && s.hearts === 0); }
+function enter(s, x, y) {
+  const c = at(s, x, y);
+  s.hx = x; s.hy = y;
+  if (c === '*') { s.hearts--; put(s, x, y, ' '); }
+  else if (c === '.') put(s, x, y, ' ');
+  else if (c === 'E') s.won = true;
+}
+// Един ход на героя. Връща ново състояние или null, ако ходът е невъзможен.
+function tryMove(s, dx, dy) {
+  if (s.dead || s.won) return null;
+  const x = s.hx + dx, y = s.hy + dy, c = at(s, x, y);
+  if (dy === -1 && at(s, s.hx, s.hy) !== 'H') return null;   // нагоре само по стълба
+  const n = clone(s);
+  if (passable(s, c)) enter(n, x, y);
+  else if (c === 'O' && dy === 0 && at(s, x + dx, y) === ' ') {  // бутане на камък
+    put(n, x + dx, y, 'O'); put(n, x, y, ' ');
+    enter(n, x, y);
+  } else return null;
+  n.moves++;
+  return n;
+}
+// Една стъпка гравитация. Връща true, ако нещо се е преместило.
+function tick(s) {
+  if (s.dead || s.won) return false;
+  let moved = false;
+  if (at(s, s.hx, s.hy) !== 'H') {
+    const b = at(s, s.hx, s.hy + 1);
+    if (b === ' ' || b === '*' || (b === 'E' && s.hearts === 0)) { enter(s, s.hx, s.hy + 1); moved = true; }
+  }
+  if (s.won) return moved;
+  const was = new Set(s.falling), now = [];
+  for (let y = s.h - 2; y >= 0; y--) for (let x = 0; x < s.w; x++) {
+    if (at(s, x, y) !== 'O') continue;
+    const i = y * s.w + x;
+    if (s.hx === x && s.hy === y + 1) {          // камъкът е върху героя
+      if (was.has(i)) { s.dead = true; s.deathRock = i; }
+      continue;
+    }
+    if (at(s, x, y + 1) === ' ') { put(s, x, y, ' '); put(s, x, y + 1, 'O'); now.push(i + s.w); moved = true; }
+  }
+  s.falling = now;
+  return moved;
+}
+function settle(s) { let n = 0; while (tick(s) && n++ < 2000); return s; }
+// ---- подсказка: следващ ход към решението (или null, ако оттук няма път)
+const DIRV = { R: [1, 0], L: [-1, 0], U: [0, -1], D: [0, 1] };
+function stateKey(s) { return s.hx + ',' + s.hy + '|' + s.g.join(''); }
+// Резервно търсене: насочено първо към най-близкото сърце, после към изхода.
+function greedyHint(start, limit) {
+  const ei = start.g.indexOf('E'), ex = ei % start.w, ey = Math.floor(ei / start.w);
+  const near = s => {
+    if (!s.hearts) return Math.abs(s.hx - ex) + Math.abs(s.hy - ey);
+    let m = 1e9;
+    for (let i = 0; i < s.g.length; i++) if (s.g[i] === '*')
+      m = Math.min(m, Math.abs(s.hx - i % s.w) + Math.abs(s.hy - Math.floor(i / s.w)));
+    return m;
+  };
+  const heap = [], prio = (s, d) => s.hearts * 1000 + near(s) * 10 + d * 0.01;
+  const push = e => { heap.push(e); let i = heap.length - 1;
+    while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop();
+    if (heap.length) { heap[0] = last; let i = 0;
+      for (;;) { const l = 2 * i + 1, r = l + 1; let m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } }
+    return top; };
+  const seen = new Set([stateKey(start)]);
+  push([prio(start, 0), start, 0, null]);
+  while (heap.length && seen.size < limit) {
+    const [, s, d, first] = pop();
+    for (const ch of 'RLUD') {
+      const n = tryMove(s, ...DIRV[ch]);
+      if (!n) continue;
+      settle(n);
+      if (n.dead) continue;
+      const k = stateKey(n);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      if (n.won) return first || ch;
+      push([prio(n, d + 1), n, d + 1, first || ch]);
+    }
+  }
+  return null;
+}
+// Търси най-близката позиция, от която остатъкът от записаното решение още печели.
+function suffixWins(s, sol, i) {
+  let t = s;
+  for (let j = i; j < sol.length; j++) {
+    t = tryMove(t, ...DIRV[sol[j]]);
+    if (!t) return false;
+    settle(t);
+    if (t.dead) return false;
+    if (t.won) return true;
+  }
+  return false;
+}
+function findHint(start, lv, limit = 30000) {
+  if (start.dead || start.won) return null;
+  const sol = lv.sol, posIdx = new Map();
+  let t = settle(parseLevel(lv));
+  for (let i = 0; i < sol.length && t && !t.won; i++) {
+    const k = t.hx + ',' + t.hy;
+    if (!posIdx.has(k)) posIdx.set(k, []);
+    posIdx.get(k).unshift(i);                 // по-късните индекси първо
+    t = tryMove(t, ...DIRV[sol[i]]);
+    if (t) settle(t);
+  }
+  const resume = s => {
+    for (const i of posIdx.get(s.hx + ',' + s.hy) || []) if (suffixWins(s, sol, i)) return sol[i];
+    return null;
+  };
+  const direct = resume(start);
+  if (direct) return direct;
+  const k0 = stateKey(start), seen = new Map([[k0, null]]);
+  let q = [start];
+  while (q.length && seen.size < limit) {
+    const nq = [];
+    for (const s of q) for (const ch of 'RLUD') {
+      const n = tryMove(s, ...DIRV[ch]);
+      if (!n) continue;
+      settle(n);
+      if (n.dead) continue;
+      const k = stateKey(n);
+      if (seen.has(k)) continue;
+      seen.set(k, [stateKey(s), ch]);
+      if (n.won || resume(n)) {
+        let kk = k;
+        while (seen.get(kk)[0] !== k0) kk = seen.get(kk)[0];
+        return seen.get(kk)[1];
+      }
+      nq.push(n);
+    }
+    q = nq;
+  }
+  return greedyHint(start, limit);
+}
+// LOGIC-END
+
+// ---------------------------------------------------------------- UI
+const CS = 32;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const overlay = document.getElementById('overlay'), ovBox = document.getElementById('ovBox');
+const SAVE = 'fallingHero.v1';
+let prog = loadProg();
+let li = 0, s = null, history = [], busy = false, queued = null, facing = 1, animToken = 0;
+let hint = null, hintMsg = '', hintsUsed = 0;
+
+function loadProg() {
+  try { return Object.assign({ unlocked: 0, best: {}, last: 0 }, JSON.parse(localStorage.getItem(SAVE)) || {}); }
+  catch (e) { return { unlocked: 0, best: {}, last: 0 }; }
+}
+function saveProg() { try { localStorage.setItem(SAVE, JSON.stringify(prog)); } catch (e) {} }
+
+function startLevel(i) {
+  li = Math.max(0, Math.min(LEVELS.length - 1, i));
+  prog.last = li; saveProg();
+  s = settle(parseLevel(LEVELS[li]));
+  history = []; busy = false; queued = null; facing = 1; animToken++;
+  hint = null; hintMsg = ''; hintsUsed = 0;
+  cv.width = s.w * CS; cv.height = s.h * CS;
+  hideOverlay(); render(); updateUI();
+}
+
+function doMove(dx, dy) {
+  if (overlay.classList.contains('show') && !s.dead) return;
+  if (busy) { queued = [dx, dy]; return; }
+  if (s.dead || s.won) return;
+  if (dx) facing = dx;
+  const n = tryMove(s, dx, dy);
+  if (!n) return;
+  history.push(s); s = n;
+  hint = null; hintMsg = '';
+  render(); updateUI();
+  runPhysics();
+}
+
+function runPhysics() {
+  const token = ++animToken;
+  busy = true;
+  const step = () => {
+    if (token !== animToken) return;
+    if (s.won) { busy = false; onWin(); return; }
+    const moved = tick(s);
+    render(); updateUI();
+    if (s.dead) { busy = false; queued = null; onDead(); return; }
+    if (s.won) { busy = false; onWin(); return; }
+    if (moved) { setTimeout(step, 55); return; }
+    busy = false;
+    if (queued) { const q = queued; queued = null; doMove(q[0], q[1]); }
+  };
+  step();
+}
+
+const DIR_NAMES = { R: '→ надясно', L: '← наляво', U: '↑ нагоре', D: '↓ надолу' };
+function showHint() {
+  closeMenus();
+  if (busy || s.won) return;
+  if (s.dead) { hintMsg = 'Подсказка: върни хода (Z).'; updateUI(); return; }
+  hintMsg = 'Мисля…'; updateUI();
+  document.body.style.cursor = 'wait';
+  setTimeout(() => {
+    const h = findHint(s, LEVELS[li]);
+    document.body.style.cursor = '';
+    if (h) {
+      hint = h; hintsUsed++;
+      hintMsg = 'Подсказка: ' + DIR_NAMES[h];
+    } else {
+      hint = null;
+      let back = 0;
+      for (let j = history.length - 1; j >= 0 && history.length - j <= 30; j--)
+        if (findHint(history[j], LEVELS[li], 4000)) { back = history.length - j; break; }
+      hintMsg = back ? `Оттук не намирам път. Върни ${back} ${back === 1 ? 'ход' : 'хода'} (Z).`
+                     : 'Оттук не намирам път. Започни отначало (R).';
+    }
+    render(); updateUI();
+  }, 30);
+}
+function undo() {
+  if (!history.length) return;
+  animToken++; busy = false; queued = null;
+  s = history.pop();
+  hint = null; hintMsg = '';
+  hideOverlay(); render(); updateUI();
+}
+function restart() { startLevel(li); }
+function canGo(i) { return i >= 0 && i < LEVELS.length && i <= prog.unlocked; }
+function go(i) { if (canGo(i)) startLevel(i); }
+
+function onWin() {
+  const prev = prog.best[li];
+  const isRecord = prev === undefined || s.moves < prev;
+  if (isRecord) prog.best[li] = s.moves;
+  prog.unlocked = Math.max(prog.unlocked, li + 1);
+  saveProg(); updateUI();
+  const last = li === LEVELS.length - 1;
+  showBox('Браво!',
+    `<b>${LEVELS[li].name}</b> е минато за <b>${s.moves}</b> хода.` +
+    (hintsUsed ? `<br><small>Използва ${hintsUsed} ${hintsUsed === 1 ? 'подсказка' : 'подсказки'}.</small>` : '') +
+    (isRecord && prev !== undefined ? `<br>Нов рекорд (досега: ${prev})!` : '') +
+    (LEVELS[li].par ? (s.moves <= LEVELS[li].par ? '<br>Това е най-краткото възможно решение!'
+      : `<br><small>Възможно е и за ${LEVELS[li].par}.</small>`) : '') +
+    (last ? '<br><br>Това беше последното ниво. Мина цялата игра! ♥' : ''),
+    (last ? '' : '<button data-act="next">Следващо ниво ▶</button>') +
+    '<button data-act="restart">Пак това ниво</button>');
+}
+function onDead() {
+  showBox('Ох!', 'Камък падна върху героя.',
+    '<button data-act="undo">↶ Върни ход</button><button data-act="restart">⟲ Отначало</button>');
+}
+function showHelp() {
+  showBox('Правила',
+    `Събери всички <b style="color:#c00">♥ сърца</b>, после стигни до <b>EXIT</b>.
+     <ul>
+      <li class="keys-only">Стрелки или WASD за движение. По стълбите се качваш и слизаш.</li>
+      <li class="touch-only">Движиш се с бутоните под играта или като плъзнеш с пръст по дъската. По стълбите се качваш и слизаш.</li>
+      <li>Ако няма нищо под теб, падаш.</li>
+      <li>Минаваш през пясъка и той изчезва.</li>
+      <li>Камъните падат, когато под тях стане празно.
+          Камък, който <i>пада</i> върху теб, те смачква. Камък, който просто стои върху теб, не е опасен, докато не се махнеш изпод него.</li>
+      <li>Можеш да буташ по един камък наляво или надясно, ако зад него е празно.</li>
+     </ul>
+     <span class="keys-only"><b>H</b> дава подсказка, <b>Z</b> връща ход, <b>R</b> започва нивото отначало, <b>PgUp/PgDn</b> сменят нивото.</span><span class="touch-only">💡 дава подсказка, ↶ връща ход, ⟲ започва нивото отначало.</span>`,
+    '<button data-act="close">Добре</button>', 'left');
+}
+function showAbout() {
+  showBox('За играта',
+    'Логическа игра, вдъхновена от старите пъзели за Windows 3.1 с падащи камъни и сърца.<br>Нивата са оригинални.',
+    '<button data-act="close">Добре</button>');
+}
+function showBox(title, body, btns, cls = '') {
+  ovBox.innerHTML = `<h3>${title}</h3><div class="body ${cls}">${body}<div class="btns">${btns}</div></div>`;
+  overlay.classList.add('show');
+}
+function hideOverlay() { overlay.classList.remove('show'); }
+
+function updateUI() {
+  document.getElementById('lcdLevel').textContent = (li + 1) + '/' + LEVELS.length;
+  document.getElementById('lcdHearts').textContent = s.hearts;
+  document.getElementById('lcdMoves').textContent = s.moves;
+  document.getElementById('btnPrev').disabled = !canGo(li - 1);
+  document.getElementById('btnNext').disabled = !canGo(li + 1);
+  document.getElementById('title').textContent = `Падащият герой – ${LEVELS[li].name}`;
+  document.getElementById('stName').textContent =
+    hintMsg || (s.hearts ? `Остават ${s.hearts} от ${s.total} сърца` : 'Изходът е отворен!');
+  const b = prog.best[li];
+  document.getElementById('stBest').textContent =
+    (b !== undefined ? `Рекорд: ${b}` : 'Рекорд: —') + (LEVELS[li].par ? ` · Минимум: ${LEVELS[li].par}` : '');
+  const menu = document.getElementById('levelMenu');
+  menu.innerHTML = LEVELS.map((L, i) => {
+    const ok = canGo(i), done = prog.best[i] !== undefined;
+    return `<div data-level="${i}" class="${ok ? '' : 'locked'} ${i === li ? 'cur' : ''}">` +
+      `${i + 1}. ${L.name}<span>${done ? '✓ ' + prog.best[i] : ok ? '' : '🔒'}</span></div>`;
+  }).join('');
+}
+
+// ---------------------------------------------------------------- рисуване
+function hash(x, y, k) { let h = (x * 374761393 + y * 668265263 + k * 2246822519) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+
+function render() {
+  ctx.fillStyle = '#1f4d27';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= s.w; x++) { ctx.moveTo(x * CS + .5, 0); ctx.lineTo(x * CS + .5, cv.height); }
+  for (let y = 0; y <= s.h; y++) { ctx.moveTo(0, y * CS + .5); ctx.lineTo(cv.width, y * CS + .5); }
+  ctx.stroke();
+  for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) {
+    const c = at(s, x, y), px = x * CS, py = y * CS;
+    if (c === '#') drawWall(x, y, px, py);
+    else if (c === '.') drawSand(x, y, px, py);
+    else if (c === 'H') drawLadder(px, py);
+    else if (c === 'E') drawExit(px, py);
+  }
+  for (let y = 0; y < s.h; y++) for (let x = 0; x < s.w; x++) {
+    const c = at(s, x, y), px = x * CS, py = y * CS;
+    if (c === 'O') drawRock(x, y, px, py);
+    else if (c === '*') drawHeart(px, py);
+  }
+  drawHero(s.hx * CS, s.hy * CS);
+  if (hint) drawHint();
+}
+
+function drawHint() {
+  const [dx, dy] = DIRV[hint];
+  const tx = (s.hx + dx) * CS, ty = (s.hy + dy) * CS;
+  ctx.save();
+  ctx.strokeStyle = '#fff35a'; ctx.lineWidth = 3; ctx.setLineDash([5, 3]);
+  ctx.strokeRect(tx + 2, ty + 2, CS - 4, CS - 4);
+  ctx.setLineDash([]);
+  const cx = s.hx * CS + CS / 2 + dx * CS * .55, cy = s.hy * CS + CS / 2 + dy * CS * .55;
+  ctx.translate(cx, cy); ctx.rotate(Math.atan2(dy, dx));
+  ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-4, -9); ctx.lineTo(-4, 9); ctx.closePath();
+  ctx.fillStyle = '#fff35a'; ctx.fill();
+  ctx.strokeStyle = '#5a4a00'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.restore();
+}
+function drawWall(x, y, px, py) {
+  ctx.fillStyle = '#c4702f'; ctx.fillRect(px, py, CS, CS);
+  for (let k = 0; k < 7; k++) {
+    ctx.fillStyle = hash(x, y, k + 20) < .5 ? '#a85c22' : '#d98a48';
+    ctx.fillRect(px + Math.floor(hash(x, y, k) * (CS - 3)), py + Math.floor(hash(x, y, k + 9) * (CS - 3)), 2, 2);
+  }
+  const wall = (a, b) => at(s, a, b) === '#';
+  ctx.fillStyle = '#e8a466';
+  if (!wall(x, y - 1)) ctx.fillRect(px, py, CS, 3);
+  if (!wall(x - 1, y)) ctx.fillRect(px, py, 3, CS);
+  ctx.fillStyle = '#6e3610';
+  if (!wall(x, y + 1)) ctx.fillRect(px, py + CS - 3, CS, 3);
+  if (!wall(x + 1, y)) ctx.fillRect(px + CS - 3, py, 3, CS);
+}
+function drawSand(x, y, px, py) {
+  ctx.fillStyle = '#9b7b3c'; ctx.fillRect(px, py, CS, CS);
+  for (let k = 0; k < 14; k++) {
+    ctx.fillStyle = hash(x, y, k + 40) < .5 ? '#7d6129' : '#bf9b55';
+    ctx.fillRect(px + Math.floor(hash(x, y, k + 60) * (CS - 2)), py + Math.floor(hash(x, y, k + 80) * (CS - 2)), 2, 2);
+  }
+}
+function drawLadder(px, py) {
+  ctx.fillStyle = '#5a3d0c';
+  ctx.fillRect(px + 6, py, 5, CS); ctx.fillRect(px + CS - 11, py, 5, CS);
+  ctx.fillStyle = '#f0c75e';
+  ctx.fillRect(px + 7, py, 3, CS); ctx.fillRect(px + CS - 10, py, 3, CS);
+  for (let k = 0; k < 4; k++) {
+    const ry = py + 3 + k * 8;
+    ctx.fillStyle = '#5a3d0c'; ctx.fillRect(px + 10, ry, CS - 20, 4);
+    ctx.fillStyle = '#f0c75e'; ctx.fillRect(px + 10, ry, CS - 20, 2);
+  }
+}
+function drawRock(x, y, px, py) {
+  const cx = px + CS / 2, cy = py + CS / 2 + 1, r = CS / 2 - 3;
+  const g = ctx.createRadialGradient(cx - 4, cy - 5, 2, cx, cy, r);
+  g.addColorStop(0, '#b4b4b4'); g.addColorStop(.6, '#6c6c6c'); g.addColorStop(1, '#3a3a3a');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#1c1c1c'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  for (let k = 0; k < 4; k++) {
+    const a = hash(x, y, k) * Math.PI * 2, d = hash(x, y, k + 5) * (r - 4);
+    ctx.fillRect(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 2, 2);
+  }
+}
+function heartPath(cx, cy, sz) {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + sz * .9);
+  ctx.bezierCurveTo(cx - sz * 1.4, cy, cx - sz * .9, cy - sz * 1.1, cx, cy - sz * .35);
+  ctx.bezierCurveTo(cx + sz * .9, cy - sz * 1.1, cx + sz * 1.4, cy, cx, cy + sz * .9);
+  ctx.closePath();
+}
+function drawHeart(px, py) {
+  const cx = px + CS / 2, cy = py + CS / 2 + 1;
+  heartPath(cx, cy, 11);
+  ctx.fillStyle = '#e02626'; ctx.fill();
+  ctx.strokeStyle = '#6a0a0a'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.75)';
+  ctx.beginPath(); ctx.ellipse(cx - 5, cy - 4, 3, 2, -.6, 0, Math.PI * 2); ctx.fill();
+}
+function drawExit(px, py) {
+  const open = s.hearts === 0;
+  ctx.fillStyle = open ? '#e01818' : '#5e2a2a';
+  ctx.fillRect(px + 2, py + 5, CS - 4, CS - 10);
+  ctx.strokeStyle = open ? '#fff' : '#999'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(px + 3.5, py + 6.5, CS - 7, CS - 13);
+  ctx.fillStyle = open ? '#fff' : '#aaa';
+  ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('EXIT', px + CS / 2, py + CS / 2 + 1);
+}
+function drawHero(px, py) {
+  if (s.dead) {
+    ctx.fillStyle = '#2a5ab8'; ctx.fillRect(px + 5, py + CS - 8, CS - 10, 6);
+    ctx.fillStyle = '#ffd84a'; ctx.fillRect(px + 9, py + CS - 11, CS - 18, 4);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✶', px + 6, py + CS - 16); ctx.fillText('✶', px + CS - 6, py + CS - 18);
+    return;
+  }
+  const onLadder = at(s, s.hx, s.hy) === 'H';
+  const cx = px + CS / 2;
+  // крака
+  ctx.fillStyle = '#1b2f66';
+  ctx.fillRect(cx - 6, py + 22, 5, 8); ctx.fillRect(cx + 1, py + 22, 5, 8);
+  ctx.fillStyle = '#3a2412';
+  ctx.fillRect(cx - 7, py + 28, 6, 3); ctx.fillRect(cx + 1, py + 28, 6, 3);
+  // тяло (гащеризон)
+  ctx.fillStyle = '#2a5ab8'; ctx.fillRect(cx - 7, py + 13, 14, 11);
+  ctx.fillStyle = '#e8e8e8'; ctx.fillRect(cx - 4, py + 13, 8, 4);
+  // ръце
+  ctx.fillStyle = '#f2c29a';
+  if (onLadder) { ctx.fillRect(cx - 10, py + 9, 3, 7); ctx.fillRect(cx + 7, py + 9, 3, 7); }
+  else { ctx.fillRect(cx - 10, py + 14, 3, 7); ctx.fillRect(cx + 7, py + 14, 3, 7); }
+  // глава
+  ctx.fillStyle = '#f2c29a';
+  ctx.beginPath(); ctx.arc(cx, py + 9, 6, 0, Math.PI * 2); ctx.fill();
+  // каска
+  ctx.fillStyle = '#ffd84a';
+  ctx.beginPath(); ctx.arc(cx, py + 7, 7, Math.PI, 0); ctx.fill();
+  ctx.fillRect(cx - 8, py + 6, 16, 2);
+  ctx.fillStyle = '#c99b10'; ctx.fillRect(cx - 1, py + 1, 2, 5);
+  // очи
+  if (!onLadder) {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(cx + facing * 2 - 1, py + 9, 2, 2);
+    ctx.fillRect(cx + facing * 2 + (facing > 0 ? 2 : -4) + 1, py + 9, 2, 2);
+  }
+}
+
+// ---------------------------------------------------------------- вход
+function act(a) {
+  closeMenus();
+  if (a === 'undo') undo();
+  else if (a === 'restart') restart();
+  else if (a === 'prev') go(li - 1);
+  else if (a === 'next') go(li + 1);
+  else if (a === 'help') showHelp();
+  else if (a === 'hint') showHint();
+  else if (a === 'about') showAbout();
+  else if (a === 'close') hideOverlay();
+  else if (a === 'reset') {
+    if (confirm('Да изтрия ли целия прогрес и рекордите?')) { prog = { unlocked: 0, best: {}, last: 0 }; saveProg(); startLevel(0); }
+  }
+}
+function closeMenus() { document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open')); }
+
+document.addEventListener('click', e => {
+  const lv = e.target.closest('[data-level]');
+  if (lv) { const i = +lv.dataset.level; if (canGo(i)) { closeMenus(); startLevel(i); } e.stopPropagation(); return; }
+  const a = e.target.closest('[data-act]');
+  if (a) { act(a.dataset.act); return; }
+  const d = e.target.closest('[data-dir]');
+  if (d) { const [dx, dy] = d.dataset.dir.split(',').map(Number); doMove(dx, dy); return; }
+  const m = e.target.closest('.menu');
+  const wasOpen = m && m.classList.contains('open');
+  closeMenus();
+  if (m && !wasOpen) m.classList.add('open');
+});
+
+document.addEventListener('keydown', e => {
+  const k = e.key;
+  const dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+                 a: [-1, 0], d: [1, 0], w: [0, -1], s: [0, 1], A: [-1, 0], D: [1, 0], W: [0, -1], S: [0, 1] };
+  if (dirs[k]) { e.preventDefault(); doMove(...dirs[k]); return; }
+  if (k === 'z' || k === 'Z' || k === 'Backspace' || (e.ctrlKey && k === 'z')) { e.preventDefault(); undo(); }
+  else if (k === 'r' || k === 'R') restart();
+  else if (k === 'PageUp') { e.preventDefault(); go(li - 1); }
+  else if (k === 'PageDown') { e.preventDefault(); go(li + 1); }
+  else if (k === 'F1') { e.preventDefault(); showHelp(); }
+  else if (k === 'h' || k === 'H') showHint();
+  else if (k === 'Escape') { closeMenus(); if (!s.dead) hideOverlay(); }
+  else if ((k === 'Enter' || k === ' ') && s.won) { e.preventDefault(); go(li + 1); }
+});
+
+let touch0 = null;
+cv.addEventListener('touchstart', e => { const t = e.touches[0]; touch0 = [t.clientX, t.clientY]; }, { passive: true });
+cv.addEventListener('touchend', e => {
+  if (!touch0) return;
+  const t = e.changedTouches[0], dx = t.clientX - touch0[0], dy = t.clientY - touch0[1];
+  touch0 = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+  if (Math.abs(dx) > Math.abs(dy)) doMove(Math.sign(dx), 0); else doMove(0, Math.sign(dy));
+});
+
+startLevel(canGo(prog.last) ? prog.last : 0);
+if (!prog.unlocked && !Object.keys(prog.best).length) showHelp();
+</script>
+</body>
+</html>
